@@ -1,26 +1,31 @@
-# train_and_save_model.py
+import streamlit as st
 import tensorflow as tf
-from tensorflow.keras.datasets import mnist
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Flatten
+import numpy as np
+from PIL import Image
 
-# Load MNIST data
-(x_train, y_train), (x_test, y_test) = mnist.load_data()
-x_train, x_test = x_train / 255.0, x_test / 255.0
+# Load model once
+@st.cache_resource
+def load_model():
+    return tf.keras.models.load_model("mnist_model.h5")
 
-# Simple model
-model = Sequential([
-    Flatten(input_shape=(28, 28)),
-    Dense(128, activation='relu'),
-    Dense(10, activation='softmax')
-])
+model = load_model()
 
-model.compile(optimizer='adam',
-              loss='sparse_categorical_crossentropy',
-              metrics=['accuracy'])
+st.title("🧠 MNIST Digit Classifier")
+st.write("Upload a 28x28 image of a digit (0–9).")
 
-# Train
-model.fit(x_train, y_train, epochs=1, validation_data=(x_test, y_test))
+# File uploader
+uploaded_file = st.file_uploader("Choose an image...", type=["png", "jpg", "jpeg"])
 
-# Save model
-model.save("mnist_model.h5")
+if uploaded_file is not None:
+    # Open and preprocess image
+    image = Image.open(uploaded_file).convert("L").resize((28, 28))
+    img_array = np.array(image) / 255.0
+    img_array = img_array.reshape(1, 28, 28)
+
+    st.image(image, caption="Uploaded Digit", width=150)
+
+    # Prediction
+    prediction = model.predict(img_array)
+    predicted_class = np.argmax(prediction)
+
+    st.write(f"### Predicted Digit: {predicted_class}")
