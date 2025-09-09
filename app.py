@@ -1,65 +1,26 @@
-import streamlit as st
+# train_and_save_model.py
 import tensorflow as tf
-import numpy as np
-from PIL import Image, ImageOps
-from streamlit_drawable_canvas import st_canvas
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Flatten
 
-# Load model only once
-@st.cache_resource
-def load_model():
-    return tf.keras.models.load_model("mnist_model.h5")
+# Load MNIST data
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+x_train, x_test = x_train / 255.0, x_test / 255.0
 
-model = load_model()
+# Simple model
+model = Sequential([
+    Flatten(input_shape=(28, 28)),
+    Dense(128, activation='relu'),
+    Dense(10, activation='softmax')
+])
 
-st.set_page_config(page_title="Digit Classifier", page_icon="🔢", layout="centered")
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
 
-st.title("🔢 MNIST Digit Classifier")
-st.write("Upload a digit (0–9) or draw it below and the model will predict!")
+# Train
+model.fit(x_train, y_train, epochs=1, validation_data=(x_test, y_test))
 
-# Tabs for upload or draw
-tab1, tab2 = st.tabs(["📂 Upload Image", "✍️ Draw Digit"])
-
-# --- Upload Image Tab ---
-with tab1:
-    uploaded_file = st.file_uploader("Upload a digit image (PNG/JPG)", type=["png", "jpg", "jpeg"])
-    if uploaded_file:
-        image = Image.open(uploaded_file).convert("L")
-        image = ImageOps.invert(image)  # Invert in case background is black
-        image = image.resize((28, 28))
-
-        st.image(image, caption="Uploaded Digit", width=150)
-
-        img_array = np.array(image) / 255.0
-        img_array = img_array.reshape(1, 28, 28)
-
-        prediction = model.predict(img_array)
-        predicted_class = np.argmax(prediction)
-
-        st.success(f"### ✅ Predicted Digit: {predicted_class}")
-
-# --- Draw Digit Tab ---
-with tab2:
-    st.write("Draw a digit in the box below 👇")
-
-    canvas_result = st_canvas(
-        fill_color="black",
-        stroke_width=10,
-        stroke_color="white",
-        background_color="black",
-        width=200,
-        height=200,
-        drawing_mode="freedraw",
-        key="canvas",
-    )
-
-    if canvas_result.image_data is not None:
-        img = Image.fromarray((canvas_result.image_data[:, :, 0]).astype(np.uint8))
-        img = img.resize((28, 28)).convert("L")
-
-        img_array = np.array(img) / 255.0
-        img_array = img_array.reshape(1, 28, 28)
-
-        if np.sum(img_array) > 0:  # Avoid predicting empty canvas
-            prediction = model.predict(img_array)
-            predicted_class = np.argmax(prediction)
-            st.success(f"### ✅ Predicted Digit: {predicted_class}")
+# Save model
+model.save("mnist_model.h5")
